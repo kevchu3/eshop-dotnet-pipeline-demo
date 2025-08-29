@@ -1,0 +1,87 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: eshop-dotnet-build
+  annotations:
+    pipelinesascode.tekton.dev/on-path-changed-ignore: "[manifests/**]"
+    pipelinesascode.tekton.dev/on-cel-expression: |
+      event == "push" &&
+      target_branch == "dev" &&
+      !event_title.startsWith("build: automatic update")
+    pipelinesascode.tekton.dev/cancel-in-progress: "true"
+spec:
+  params:
+  - name: IMAGE
+    value: "quay.io/kevchu3/eshop-dotnet"
+  workspaces:
+    - name: my-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 500Mi
+  pipelineSpec:
+    tasks:
+    - name: git-clone
+      taskRef:
+        resolver: cluster
+        params:
+        - name: kind
+          value: task
+        - name: name
+          value: git-clone
+        - name: namespace
+          value: openshift-pipelines
+      workspaces:
+      - name: output
+        workspace: my-workspace
+      params:
+      - name: URL
+        value: "{{ repo_url }}"
+      - name: SUBDIRECTORY
+        value: ""
+      - name: DELETE_EXISTING
+        value: "true"
+      - name: REVISION
+        value: "{{ revision }}"
+    - name: build-image
+      taskRef:
+        resolver: cluster
+        params:
+        - name: kind
+          value: task
+        - name: name
+          value: buildah
+        - name: namespace
+          value: openshift-pipelines
+      workspaces:
+      - name: source
+        workspace: my-workspace
+      params:
+      - name: IMAGE
+        value: "$(params.IMAGE):$(tasks.git-clone.results.COMMIT)"
+      - name: TLSVERIFY
+        value: "true"
+      - name: DOCKERFILE
+        value: "Containerfile"
+      runAfter:
+        - git-clone
+    - name: tag-as-dev
+      taskRef:
+        resolver: cluster
+        params:
+        - name: kind
+          value: task
+        - name: name
+          value: skopeo-copy
+        - name: namespace
+          value: openshift-pipelines
+      params:
+      - name: SOURCE_IMAGE_URL
+        value: "docker://$(tasks.build-image.results.IMAGE_URL)"
+      - name: DESTINATION_IMAGE_URL
+        value: "docker://$(params.IMAGE):dev"
+      runAfter:
+        - build-image

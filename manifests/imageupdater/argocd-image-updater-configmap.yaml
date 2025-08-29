@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-image-updater-config
+data:
+  registries.conf: |
+    registries:
+    - name: Red Hat Quay
+      api_url: https://quay.io
+      prefix: quay.io
+      insecure: yes
+      credentials: pullsecret:openshift-gitops/quay-secret

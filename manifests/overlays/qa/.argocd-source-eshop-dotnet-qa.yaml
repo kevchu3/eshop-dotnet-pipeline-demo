@@ -1,0 +1,3 @@
+kustomize:
+  images:
+  - quay.io/<your-repo>/eshop-dotnet:1bf3e165d168453966ce2709106a2b36721b2fa9-qa

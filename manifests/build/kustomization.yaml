@@ -1,0 +1,14 @@
+# Used for one-time setup of pipeline with required GitHub and Quay credentials in eshop-dotnet-dev namespace.
+# This showcases manually running the pipeline, and does not use pipelines as code.
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: eshop-dotnet-dev
+
+resources:
+- ../secrets/github-secret.yaml
+- ../secrets/quay-secret.yaml
+- eshop-dotnet-build.pipeline.yaml
+- eshop-dotnet-promote.pipeline.yaml
+- serviceaccount.yaml

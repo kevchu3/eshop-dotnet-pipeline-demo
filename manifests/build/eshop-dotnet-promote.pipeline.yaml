@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: eshop-dotnet-promote-pipeline
+spec:
+  params:
+  - name: IMAGE
+    type: string
+    description: Image to be copied
+    default: 'quay.io/<your-repo>/eshop-dotnet'
+  - name: TAG
+    type: string
+    description: Tag of image to be copied (omit the -dev, task will check for it)
+    default: ''
+  tasks:
+  - name: tag-as-qa
+    taskRef:
+      resolver: cluster
+      params:
+      - name: kind
+        value: task
+      - name: name
+        value: skopeo-copy
+      - name: namespace
+        value: openshift-pipelines
+    params:
+    - name: SOURCE_IMAGE_URL
+      value: 'docker://$(params.IMAGE):dev'
+    - name: DESTINATION_IMAGE_URL
+      value: 'docker://$(params.IMAGE):qa'

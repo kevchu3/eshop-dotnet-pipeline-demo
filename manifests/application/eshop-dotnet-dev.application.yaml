@@ -1,0 +1,30 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: eshop-dotnet-dev
+  namespace: openshift-gitops
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+    argocd-image-updater.argoproj.io/image-list: eshop-dotnet=quay.io/<your-repo>/eshop-dotnet:dev
+    argocd-image-updater.argoproj.io/eshop-dotnet.update-strategy: digest
+    argocd-image-updater.argoproj.io/git-branch: dev
+    argocd-image-updater.argoproj.io/write-back-method: git:secret:openshift-gitops/github-secret
+spec:
+  destination:
+    namespace: eshop-dotnet-dev
+    server: https://kubernetes.default.svc
+  ignoreDifferences:
+    - kind: ServiceAccount
+      name: eshop
+      namespace: eshop-dotnet-dev
+      jsonPointers:
+        - /imagePullSecrets
+  project: default
+  source:
+    path: manifests/overlays/dev
+    repoURL: https://github.com/na-launch/eshop-dotnet-pipeline-demo.git
+    targetRevision: dev
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

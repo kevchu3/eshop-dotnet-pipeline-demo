@@ -1,0 +1,6 @@
+apiVersion: pipelinesascode.tekton.dev/v1alpha1
+kind: Repository
+metadata:
+  name: eshop-dev-repository
+spec:
+  url: "https://github.com/na-launch/eshop-dotnet-pipeline-demo"

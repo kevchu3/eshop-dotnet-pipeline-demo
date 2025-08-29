@@ -1,0 +1,41 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: eshop-dotnet-promote
+  annotations:
+    pipelinesascode.tekton.dev/on-path-changed-ignore: "[manifests/**]"
+    pipelinesascode.tekton.dev/on-cel-expression: |
+      event == "push" &&
+      target_branch == "qa" &&
+      !event_title.startsWith("build: automatic update")
+    pipelinesascode.tekton.dev/cancel-in-progress: "true" 
+spec:
+  params:
+  - name: IMAGE
+    value: "quay.io/kevchu3/eshop-dotnet"
+  workspaces:
+    - name: my-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 500Mi
+  pipelineSpec:
+    tasks:
+    - name: tag-as-qa
+      taskRef:
+        resolver: cluster
+        params:
+        - name: kind
+          value: task
+        - name: name
+          value: skopeo-copy
+        - name: namespace
+          value: openshift-pipelines
+      params:
+      - name: SOURCE_IMAGE_URL
+        value: "docker://$(params.IMAGE):dev"
+      - name: DESTINATION_IMAGE_URL
+        value: "docker://$(params.IMAGE):qa"

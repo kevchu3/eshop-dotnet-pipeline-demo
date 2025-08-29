@@ -1,0 +1,15 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: eshop
+spec:
+  to:
+    name: eshop
+    weight: 100
+    kind: Service
+  port:
+    targetPort: 19888
+  tls:
+    termination: passthrough
+    insecureEdgeTerminationPolicy: None
+  wildcardPolicy: None

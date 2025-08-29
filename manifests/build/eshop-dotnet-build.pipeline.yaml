@@ -1,0 +1,82 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: eshop-dotnet-build-pipeline
+spec:
+  params:
+  - name: git-url
+    type: string
+    description: Git code repository
+    default: 'https://github.com/na-launch/eShop-dotnet-pipeline-demo.git'
+  - name: git-revision
+    type: string
+    description: Git revision to use
+    default: main
+  - name: IMAGE
+    type: string
+    description: Image to be built
+    default: 'quay.io/<your-repo>/eshop-dotnet'
+  workspaces:
+  - name: my-workspace
+  tasks:
+  - name: git-clone
+    taskRef:
+      resolver: cluster
+      params:
+      - name: kind
+        value: task
+      - name: name
+        value: git-clone
+      - name: namespace
+        value: openshift-pipelines
+    workspaces:
+    - name: output
+      workspace: my-workspace
+    params:
+    - name: URL
+      value: $(params.git-url)
+    - name: SUBDIRECTORY
+      value: ""
+    - name: DELETE_EXISTING
+      value: "true"
+    - name: REVISION
+      value: $(params.git-revision)
+  - name: build-image
+    taskRef:
+      resolver: cluster
+      params:
+      - name: kind
+        value: task
+      - name: name
+        value: buildah
+      - name: namespace
+        value: openshift-pipelines
+    workspaces:
+    - name: source
+      workspace: my-workspace
+    params:
+    - name: IMAGE
+      value: '$(params.IMAGE):$(tasks.git-clone.results.COMMIT)'
+    - name: TLSVERIFY
+      value: 'true'
+    - name: DOCKERFILE
+      value: 'Containerfile'
+    runAfter:
+      - git-clone
+  - name: tag-as-dev
+    taskRef:
+      resolver: cluster
+      params:
+      - name: kind
+        value: task
+      - name: name
+        value: skopeo-copy
+      - name: namespace
+        value: openshift-pipelines
+    params:
+    - name: SOURCE_IMAGE_URL
+      value: 'docker://$(tasks.build-image.results.IMAGE_URL)'
+    - name: DESTINATION_IMAGE_URL
+      value: 'docker://$(params.IMAGE):dev'
+    runAfter:
+      - build-image

@@ -1,142 +1,60 @@
-# eShop Reference Application - "AdventureWorks"
+# eShop .NET OpenShift Migration and Pipeline Demo
 
-A reference .NET application implementing an e-commerce website using a services-based architecture using [.NET Aspire](https://learn.microsoft.com/dotnet/aspire/).
+This demo is based on [Red Hat OpenShift](https://www.redhat.com/en/technologies/cloud-computing/openshift) and uses the [eShop Reference Application](https://github.com/dotnet/eShop) from the upstream .NET community as an application base.
 
-![eShop Reference Application architecture diagram](img/eshop_architecture.png)
+## Purpose of this Demo
 
-![eShop homepage screenshot](img/eshop_homepage.png)
+The migration and pipeline demo performs the following:
 
-## Getting Started
+1. Containerize the application so that it can be migrated to OpenShift.  Required changes can be found in the [container-base branch](https://github.com/na-launch/eshop-dotnet-pipeline-demo/tree/container-base).
+2. Build the eShop application, tag the resulting image as `dev` and promote the tag to `qa` with OpenShift Pipelines.
+3. Deploy both the Development and QA versions of the application with OpenShift GitOps.
+4. Detect image updates for `dev` and `qa` tags with ArgoCD Image Updater.
+5. Based on a source code push, Pipelines as Code will automatically run the respective pipelines from step 2 and report the status.
 
-This version of eShop is based on .NET 9. 
+## Setup
 
-Previous eShop versions:
-* [.NET 8](https://github.com/dotnet/eShop/tree/release/8.0)
+This demo assumes the following have been set up:
+- Red Hat OpenShift (tested on 4.19)
+  - OpenShift Pipelines (tested on 1.19) with Pipelines as Code
+  - OpenShift GitOps (tested on 1.17) with [ArgoCD Image Updater (community version)](https://argocd-image-updater.readthedocs.io/)
+- Code repository hosted on GitHub
+- Image repository hosted on Quay.io
 
-### Prerequisites
+For the community version of ArgoCD Image Updater, we deployed into the `openshift-gitops` namespace:
+```
+oc apply -n openshift-gitops -f https://raw.githubusercontent.com/argoproj-labs/argocd-image-updater/v0.16.0/manifests/install.yaml
+```
+Fork this repository to your own GitHub repository which will be used for the application code base.
 
-- Clone the eShop repository: https://github.com/dotnet/eshop
-- [Install & start Docker Desktop](https://docs.docker.com/engine/install/)
+## The Pipeline
 
-#### Windows with Visual Studio
-- Install [Visual Studio 2022 version 17.10 or newer](https://visualstudio.microsoft.com/vs/).
-  - Select the following workloads:
-    - `ASP.NET and web development` workload.
-    - `.NET Aspire SDK` component in `Individual components`.
-    - Optional: `.NET Multi-platform App UI development` to run client apps
+### Build and Promote
 
-Or
+For this demo, we configured authentication to the repositories with a [GitHub personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens) and [Quay.io robot account](https://docs.redhat.com/en/documentation/red_hat_quay/3.15/html/use_red_hat_quay/allow-robot-access-user-repo).  Replace the contents of [github-secret.yaml](/manifests/secrets/github-secret.yaml) and [quay-secret.yaml](/manifests/secrets/quay-secret.yaml) with your own (the secrets in this repository are just dummy values).
 
-- Run the following commands in a Powershell & Terminal running as `Administrator` to automatically configure your environment with the required tools to build and run this application. (Note: A restart is required and included in the script below.)
-
-```powershell
-install-Module -Name Microsoft.WinGet.Configuration -AllowPrerelease -AcceptLicense -Force
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-get-WinGetConfiguration -file .\.configurations\vside.dsc.yaml | Invoke-WinGetConfiguration -AcceptConfigurationAgreements
+In the [build](manifests/build/eshop-dotnet-build.pipeline.yaml) and [promote](manifests/build/eshop-dotnet-promote.pipeline.yaml) pipelines, replace the value of the `IMAGE` parameter with your own image.  Also in the [base deployment](manifests/base/deployment.yaml), replace the value of the container image to be used with your own.  Then deploy the pipelines, which can be run manually:
+```
+oc apply -k manifests/build
 ```
 
-Or
-
-- From Dev Home go to `Machine Configuration -> Clone repositories`. Enter the URL for this repository. In the confirmation screen look for the section `Configuration File Detected` and click `Run File`.
-
-#### Mac, Linux, & Windows without Visual Studio
-- Install the latest [.NET 9 SDK](https://dot.net/download?cid=eshop)
-
-Or
-
-- Run the following commands in a Powershell & Terminal running as `Administrator` to automatically configuration your environment with the required tools to build and run this application. (Note: A restart is required after running the script below.)
-
-##### Install Visual Studio Code and related extensions
-```powershell
-install-Module -Name Microsoft.WinGet.Configuration -AllowPrerelease -AcceptLicense  -Force
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
-get-WinGetConfiguration -file .\.configurations\vscode.dsc.yaml | Invoke-WinGetConfiguration -AcceptConfigurationAgreements
+Pipelines as Code is an enhancement from manual pipeline runs by automating pipeline runs based on source code push.  To set this up, [configure a GitHub app](https://docs.redhat.com/en/documentation/red_hat_openshift_pipelines/1.19/html/pipelines_as_code/using-pipelines-as-code-repos#pac-configuring-github-app-manually_using-pipelines-as-code-repos) for Pipelines as Code.  In the [eshop-dev-repository.yaml](manifests/pipelinesascode/eshop-dev-repository.yaml) definition, update the URL with your own Git fork then apply:
+```
+oc apply -k manifests/pipelinesascode
 ```
 
-> Note: These commands may require `sudo`
+### Deploy
 
-- Optional: Install [Visual Studio Code with C# Dev Kit](https://code.visualstudio.com/docs/csharp/get-started)
-- Optional: Install [.NET MAUI Workload](https://learn.microsoft.com/dotnet/maui/get-started/installation?tabs=visual-studio-code)
+The following applications manage the Development and QA versions:
+- [Development application](manifests/application/eshop-dotnet-dev.application.yaml) in `eshop-dotnet-dev` namespace
+- [QA application](manifests/application/eshop-dotnet-qa.application.yaml) in `eshop-dotnet-qa` namespace, also in the same cluster
 
-> Note: When running on Mac with Apple Silicon (M series processor), Rosetta 2 for grpc-tools. 
-
-### Running the solution
-
-> [!WARNING]
-> Remember to ensure that Docker is started
-
-* (Windows only) Run the application from Visual Studio:
- - Open the `eShop.Web.slnf` file in Visual Studio
- - Ensure that `eShop.AppHost.csproj` is your startup project
- - Hit Ctrl-F5 to launch Aspire
-
-* Or run the application from your terminal:
-```powershell
-dotnet run --project src/eShop.AppHost/eShop.AppHost.csproj
+Replace the image in `argocd-image-updater.argoproj.io/image-list` with your own, then deploy the ArgoCD applications:
 ```
-then look for lines like this in the console output in order to find the URL to open the Aspire dashboard:
-```sh
-Login to the dashboard at: http://localhost:19888/login?t=uniquelogincodeforyou
+oc apply -k manifests/application
 ```
 
-> You may need to install ASP.NET Core HTTPS development certificates first, and then close all browser tabs. Learn more at https://aka.ms/aspnet/https-trust-dev-cert
+Image Updater detects updates to the image digest for the `dev` and `qa` tags and deploys the latest image via ArgoCD.
 
-### Azure Open AI
-
-When using Azure OpenAI, inside *eShop.AppHost/appsettings.json*, add the following section:
-
-```json
-  "ConnectionStrings": {
-    "OpenAi": "Endpoint=xxx;Key=xxx;"
-  }
 ```
-
-Replace the values with your own. Then, in the eShop.AppHost *Program.cs*, set this value to **true**
-
-```csharp
-bool useOpenAI = false;
-```
-
-Here's additional guidance on the [.NET Aspire OpenAI component](https://learn.microsoft.com/dotnet/aspire/azureai/azureai-openai-component?tabs=dotnet-cli). 
-
-### Use Azure Developer CLI
-
-You can use the [Azure Developer CLI](https://aka.ms/azd) to run this project on Azure with only a few commands. Follow the next instructions:
-
-- Install the latest or update to the latest [Azure Developer CLI (azd)](https://aka.ms/azure-dev/install).
-- Log in `azd` (if you haven't done it before) to your Azure account:
-```sh
-azd auth login
-```
-- Initialize `azd` from the root of the repo.
-```sh
-azd init
-```
-- During init:
-  - Select `Use code in the current directory`. Azd will automatically detect the .NET Aspire project.
-  - Confirm `.NET (Aspire)` and continue.
-  - Select which services to expose to the Internet (exposing `webapp` is enough to test the sample).
-  - Finalize the initialization by giving a name to your environment.
-
-- Create Azure resources and deploy the sample by running:
-```sh
-azd up
-```
-Notes:
-  - The operation takes a few minutes the first time it is ever run for an environment.
-  - At the end of the process, `azd` will display the `url` for the webapp. Follow that link to test the sample.
-  - You can run `azd up` after saving changes to the sample to re-deploy and update the sample.
-  - Report any issues to [azure-dev](https://github.com/Azure/azure-dev/issues) repo.
-  - [FAQ and troubleshoot](https://learn.microsoft.com/azure/developer/azure-developer-cli/troubleshoot?tabs=Browser) for azd.
-
-## Contributing
-
-For more information on contributing to this repo, read [the contribution documentation](./CONTRIBUTING.md) and [the Code of Conduct](CODE-OF-CONDUCT.md).
-
-### Sample data
-
-The sample catalog data is defined in [catalog.json](https://github.com/dotnet/eShop/blob/main/src/Catalog.API/Setup/catalog.json). Those product names, descriptions, and brand names are fictional and were generated using [GPT-35-Turbo](https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/chatgpt), and the corresponding [product images](https://github.com/dotnet/eShop/tree/main/src/Catalog.API/Pics) were generated using [DALL·E 3](https://openai.com/dall-e-3).
-
-## eShop on Azure
-
-For a version of this app configured for deployment on Azure, please view [the eShop on Azure](https://github.com/Azure-Samples/eShopOnAzure) repo.
+oc apply -k manifests/imageupdater
