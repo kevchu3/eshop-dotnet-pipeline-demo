@@ -7,8 +7,7 @@ kind: Kustomization
 namespace: eshop-dotnet-dev
 
 resources:
-- ../secrets/github-secret.yaml
-- ../secrets/quay-secret.yaml
+- ../secrets
 - eshop-dotnet-build.pipeline.yaml
 - eshop-dotnet-promote.pipeline.yaml
 - serviceaccount.yaml
