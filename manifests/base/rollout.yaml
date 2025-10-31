@@ -11,8 +11,8 @@ spec:
       app: eshop
   strategy:
     canary:
-      canaryService: rollouts-demo-canary-canary
-      stableService: rollouts-demo-canary-stable
+      canaryService: rollouts-eshop-canary-canary
+      stableService: rollouts-eshop-canary-stable
       steps:
       - setWeight: 20
       - pause: { duration: 20 }
