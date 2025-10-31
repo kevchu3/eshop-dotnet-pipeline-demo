@@ -2,9 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-- deployment.yaml
-- imagestream.yaml
+#- deployment.yaml
+#- imagestream.yaml
 - rolebinding.yaml
+- rollout.yaml
 - route.yaml
 - serviceaccount.yaml
-- service.yaml
+#- service.yaml
+- service-stable.yaml
+- service-canary.yaml

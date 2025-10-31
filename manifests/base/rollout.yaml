@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: eshop
+  labels:
+    app: eshop
+spec:
+  replicas: 5
+  selector:
+    matchLabels:
+      app: eshop
+  strategy:
+    canary:
+      canaryService: rollouts-demo-canary-canary
+      stableService: rollouts-demo-canary-stable
+      steps:
+      - setWeight: 20
+      - pause: { duration: 20 }
+      - setWeight: 40
+      - pause: { duration: 20 }
+      - setWeight: 60
+      - pause: { duration: 20 }
+      - setWeight: 80
+      - pause: { duration: 10 }
+  template:
+    metadata:
+      labels:
+        app: eshop
+    spec:
+      containers:
+      - name: rollouts-demo-canary
+        image: image-registry.openshift-image-registry.svc:5000/eshop/eshop:dev
+        ports:
+        - containerPort: 8080
