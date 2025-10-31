@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: container
-          image: 'quay.io/<your-repo>/eshop-dotnet:latest'
+          image: 'image-registry.openshift-image-registry.svc:5000/eshop/eshop:dev'
           ports:
             - containerPort: 8080
               protocol: TCP
