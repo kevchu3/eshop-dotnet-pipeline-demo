@@ -3,7 +3,7 @@ kind: Kustomization
 
 resources:
 #- deployment.yaml
-#- imagestream.yaml
+- imagestream.yaml
 - rolebinding.yaml
 - rollout.yaml
 - route.yaml
